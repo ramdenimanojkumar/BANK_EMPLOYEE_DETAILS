@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 
-class EmployeeTextField extends StatelessWidget {
+class CustomerTextField extends StatelessWidget {
   final String label;
   final String? hint;
   final TextEditingController controller;
@@ -16,8 +16,9 @@ class EmployeeTextField extends StatelessWidget {
   final bool readOnly;
   final VoidCallback? onTap;
   final String? helperText;
+  final bool isRequired;
 
-  const EmployeeTextField({
+  const CustomerTextField({
     super.key,
     required this.label,
     this.hint,
@@ -31,6 +32,7 @@ class EmployeeTextField extends StatelessWidget {
     this.readOnly = false,
     this.onTap,
     this.helperText,
+    this.isRequired = true,
   });
 
   @override
@@ -39,16 +41,20 @@ class EmployeeTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (validator != null) ...[
+            if (isRequired) ...[
               const SizedBox(width: 4),
               const Text(
                 '*',
@@ -87,7 +93,7 @@ class EmployeeTextField extends StatelessWidget {
   }
 }
 
-class EmployeeDropdownField extends StatelessWidget {
+class CustomerDropdownField extends StatelessWidget {
   final String label;
   final String? hint;
   final String? value;
@@ -97,7 +103,7 @@ class EmployeeDropdownField extends StatelessWidget {
   final String? Function(String?)? validator;
   final bool isRequired;
 
-  const EmployeeDropdownField({
+  const CustomerDropdownField({
     super.key,
     required this.label,
     this.hint,
@@ -115,13 +121,17 @@ class EmployeeDropdownField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             if (isRequired) ...[
@@ -165,20 +175,28 @@ class EmployeeDropdownField extends StatelessWidget {
   }
 }
 
-class EmployeeDateField extends StatelessWidget {
+class CustomerDateField extends StatelessWidget {
   final String label;
   final DateTime? selectedDate;
   final ValueChanged<DateTime> onDateSelected;
   final String? Function(DateTime?)? validator;
   final bool isRequired;
+  final DateTime? firstDate;
+  final DateTime? lastDate;
+  final String? hintText;
+  final IconData icon;
 
-  const EmployeeDateField({
+  const CustomerDateField({
     super.key,
     required this.label,
     required this.selectedDate,
     required this.onDateSelected,
     this.validator,
     this.isRequired = true,
+    this.firstDate,
+    this.lastDate,
+    this.hintText,
+    this.icon = Icons.calendar_today_rounded,
   });
 
   @override
@@ -190,13 +208,17 @@ class EmployeeDateField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             if (isRequired) ...[
@@ -218,9 +240,9 @@ class EmployeeDateField extends StatelessWidget {
             final now = DateTime.now();
             final picked = await showDatePicker(
               context: context,
-              initialDate: selectedDate ?? now,
-              firstDate: DateTime(1980),
-              lastDate: DateTime(now.year + 2),
+              initialDate: selectedDate ?? (lastDate != null && now.isAfter(lastDate!) ? lastDate! : now),
+              firstDate: firstDate ?? DateTime(1920),
+              lastDate: lastDate ?? DateTime(now.year + 5),
               builder: (context, child) {
                 return Theme(
                   data: Theme.of(context).copyWith(
@@ -241,12 +263,12 @@ class EmployeeDateField extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           child: InputDecorator(
             decoration: InputDecoration(
-              hintText: 'YYYY-MM-DD',
-              prefixIcon: const Icon(Icons.calendar_today_rounded, size: 20),
+              hintText: hintText ?? 'YYYY-MM-DD',
+              prefixIcon: Icon(icon, size: 20),
               suffixIcon: const Icon(Icons.arrow_drop_down, color: AppTheme.textSecondary),
             ),
             child: Text(
-              formattedText.isNotEmpty ? formattedText : 'Select Date of Joining',
+              formattedText.isNotEmpty ? formattedText : (hintText ?? 'Select Date'),
               style: TextStyle(
                 fontSize: 14,
                 color: formattedText.isNotEmpty ? AppTheme.textPrimary : AppTheme.textMuted,
