@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
-import 'screens/add_employee_screen.dart';
-import 'screens/view_employees_screen.dart';
+import 'screens/add_customer_screen.dart';
+import 'screens/view_customers_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const BankEmployeeApp());
+  runApp(const BankCustomerApp());
 }
 
-class BankEmployeeApp extends StatelessWidget {
-  const BankEmployeeApp({super.key});
+class BankCustomerApp extends StatelessWidget {
+  const BankCustomerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Bank Employee Details System',
+      title: 'Bank Customer Details Management System',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const MainNavigationShell(),
@@ -44,15 +44,20 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     final isDesktop = screenWidth >= 960;
 
     final screens = [
-      AddEmployeeScreen(
-        onEmployeeAdded: () {
-          // Switch to View Employees screen
+      AddCustomerScreen(
+        onNavigateToView: () {
           setState(() {
             _selectedIndex = 1;
           });
         },
       ),
-      const ViewEmployeesScreen(),
+      ViewCustomersScreen(
+        onNavigateToAdd: () {
+          setState(() {
+            _selectedIndex = 0;
+          });
+        },
+      ),
     ];
 
     if (isDesktop) {
@@ -87,12 +92,12 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             NavigationDestination(
               icon: Icon(Icons.person_add_outlined),
               selectedIcon: Icon(Icons.person_add_rounded, color: AppTheme.navyPrimary),
-              label: 'Add Employee',
+              label: 'Add Customer',
             ),
             NavigationDestination(
-              icon: Icon(Icons.badge_outlined),
-              selectedIcon: Icon(Icons.badge_rounded, color: AppTheme.navyPrimary),
-              label: 'View Employees',
+              icon: Icon(Icons.people_outline_rounded),
+              selectedIcon: Icon(Icons.people_alt_rounded, color: AppTheme.navyPrimary),
+              label: 'View Customers',
             ),
           ],
         ),
@@ -129,7 +134,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'Employee Details & Records Management Portal',
+                  'Customer Details & Records Management Portal',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w400,
@@ -159,13 +164,13 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                   width: 8,
                   height: 8,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF10B981),
+                    color: Color(0xFFF59E0B),
                     shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: 8),
                 const Text(
-                  'Frontend Mode: In-Memory / Ready for API',
+                  'Frontend Mode: Stateless UI (Backend Required)',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -179,12 +184,12 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Tooltip(
-              message: 'Frontend Mode: In-Memory / Ready for API',
+              message: 'Frontend Mode: Stateless UI (Backend Required)',
               child: Container(
                 width: 10,
                 height: 10,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF10B981),
+                  color: Color(0xFFF59E0B),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -234,7 +239,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                         ),
                       ),
                       Text(
-                        'Employee System',
+                        'Customer Management',
                         style: TextStyle(
                           color: Colors.white70,
                           fontSize: 11,
@@ -251,7 +256,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
             child: Text(
-              'MAIN NAVIGATION',
+              'MAIN SECTIONS',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.4),
                 fontSize: 11,
@@ -262,17 +267,17 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           ),
           const SizedBox(height: 8),
 
-          // Exactly Two Navigation Items
+          // Two Main Navigation Sections
           _buildSidebarNavItem(
             index: 0,
             icon: Icons.person_add_alt_1_rounded,
-            title: 'Add Employee',
+            title: 'Add Customer',
             subtitle: 'Registration Form',
           ),
           _buildSidebarNavItem(
             index: 1,
-            icon: Icons.badge_rounded,
-            title: 'View Employees',
+            icon: Icons.people_alt_rounded,
+            title: 'View Customers',
             subtitle: 'Directory & Lookup',
           ),
 
@@ -309,7 +314,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Connected to Bank Employee Details System Frontend.',
+                  'Bank Customer Details Management System Frontend.',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.5),
                     fontSize: 10,

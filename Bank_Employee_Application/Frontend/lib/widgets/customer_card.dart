@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
-import '../models/employee.dart';
+import 'package:intl/intl.dart';
+import '../models/customer.dart';
 import '../theme/app_theme.dart';
 import 'status_badge.dart';
-import 'employee_detail_modal.dart';
+import 'customer_detail_modal.dart';
 
-class EmployeeCard extends StatelessWidget {
-  final Employee employee;
+class CustomerCard extends StatelessWidget {
+  final Customer customer;
 
-  const EmployeeCard({
+  const CustomerCard({
     super.key,
-    required this.employee,
+    required this.customer,
   });
 
   @override
   Widget build(BuildContext context) {
+    final currencyFormatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+
     return Card(
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 12),
@@ -22,14 +25,14 @@ class EmployeeCard extends StatelessWidget {
         side: const BorderSide(color: AppTheme.cardBorder),
       ),
       child: InkWell(
-        onTap: () => EmployeeDetailModal.show(context, employee),
+        onTap: () => CustomerDetailModal.show(context, customer),
         borderRadius: BorderRadius.circular(10),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Row: ID Badge & Status
+              // Top Row: ID Badge & Status Badges
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -40,7 +43,7 @@ class EmployeeCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      employee.id,
+                      customer.customerId,
                       style: const TextStyle(
                         color: AppTheme.blueAccent,
                         fontSize: 12,
@@ -49,14 +52,21 @@ class EmployeeCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  StatusBadge(status: employee.employmentStatus, isCompact: true),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      StatusBadge(status: customer.accountType, isCompact: true),
+                      const SizedBox(width: 6),
+                      StatusBadge(status: customer.accountStatus, isCompact: true),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
 
-              // Name & Designation
+              // Name & Account Number
               Text(
-                employee.fullName,
+                customer.fullName,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -65,7 +75,7 @@ class EmployeeCard extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                employee.designation,
+                'A/C: ${customer.accountNumber} • ${customer.accountType}',
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
@@ -76,19 +86,19 @@ class EmployeeCard extends StatelessWidget {
               const Divider(color: AppTheme.cardBorder, height: 1),
               const SizedBox(height: 12),
 
-              // Department & Branch
-              _buildInfoRow(Icons.corporate_fare_rounded, 'Dept:', employee.department),
+              // Info rows
+              _buildInfoRow(Icons.location_city_rounded, 'Branch:', '${customer.branchName} (${customer.branchCode})'),
               const SizedBox(height: 6),
-              _buildInfoRow(Icons.location_on_outlined, 'Branch:', employee.branchName),
+              _buildInfoRow(Icons.phone_outlined, 'Phone:', customer.phone),
               const SizedBox(height: 6),
-              _buildInfoRow(Icons.phone_outlined, 'Phone:', employee.phone),
+              _buildInfoRow(Icons.account_balance_wallet_outlined, 'Balance:', currencyFormatter.format(customer.accountBalance)),
 
               const SizedBox(height: 12),
               // Bottom Action Button
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
-                  onPressed: () => EmployeeDetailModal.show(context, employee),
+                  onPressed: () => CustomerDetailModal.show(context, customer),
                   icon: const Icon(Icons.visibility_outlined, size: 16),
                   label: const Text('View Full Details'),
                   style: TextButton.styleFrom(

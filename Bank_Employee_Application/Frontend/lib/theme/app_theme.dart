@@ -14,17 +14,17 @@ class AppTheme {
   static const Color textSecondary = Color(0xFF64748B);
   static const Color textMuted = Color(0xFF94A3B8);
 
-  // Status Colors
-  static const Color statusFullTime = Color(0xFF059669);
-  static const Color statusFullTimeBg = Color(0xFFECFDF5);
-  static const Color statusProbation = Color(0xFFD97706);
-  static const Color statusProbationBg = Color(0xFFFFFBEB);
-  static const Color statusContract = Color(0xFF7C3AED);
-  static const Color statusContractBg = Color(0xFFF5F3FF);
-  static const Color statusPartTime = Color(0xFF0284C7);
-  static const Color statusPartTimeBg = Color(0xFFF0F9FF);
-  static const Color statusIntern = Color(0xFF4B5563);
-  static const Color statusInternBg = Color(0xFFF3F4F6);
+  // Customer Account Status Colors
+  static const Color statusActive = Color(0xFF059669);
+  static const Color statusActiveBg = Color(0xFFECFDF5);
+  static const Color statusInactive = Color(0xFFDC2626);
+  static const Color statusInactiveBg = Color(0xFFFEF2F2);
+
+  // Account Type Colors
+  static const Color accountSavings = Color(0xFF2563EB);
+  static const Color accountSavingsBg = Color(0xFFEFF6FF);
+  static const Color accountCurrent = Color(0xFF7C3AED);
+  static const Color accountCurrentBg = Color(0xFFF5F3FF);
 
   static ThemeData get lightTheme {
     return ThemeData(

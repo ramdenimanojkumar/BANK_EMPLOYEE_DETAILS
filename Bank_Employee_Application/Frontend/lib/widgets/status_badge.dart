@@ -16,28 +16,22 @@ class StatusBadge extends StatelessWidget {
     Color bg;
     Color fg;
 
-    switch (status.toLowerCase()) {
-      case 'full-time':
-      case 'full time':
-        bg = AppTheme.statusFullTimeBg;
-        fg = AppTheme.statusFullTime;
+    switch (status.trim().toLowerCase()) {
+      case 'active':
+        bg = AppTheme.statusActiveBg;
+        fg = AppTheme.statusActive;
         break;
-      case 'probation':
-        bg = AppTheme.statusProbationBg;
-        fg = AppTheme.statusProbation;
+      case 'inactive':
+        bg = AppTheme.statusInactiveBg;
+        fg = AppTheme.statusInactive;
         break;
-      case 'contract':
-        bg = AppTheme.statusContractBg;
-        fg = AppTheme.statusContract;
+      case 'savings':
+        bg = AppTheme.accountSavingsBg;
+        fg = AppTheme.accountSavings;
         break;
-      case 'part-time':
-      case 'part time':
-        bg = AppTheme.statusPartTimeBg;
-        fg = AppTheme.statusPartTime;
-        break;
-      case 'intern':
-        bg = AppTheme.statusInternBg;
-        fg = AppTheme.statusIntern;
+      case 'current':
+        bg = AppTheme.accountCurrentBg;
+        fg = AppTheme.accountCurrent;
         break;
       default:
         bg = Colors.grey.shade100;
