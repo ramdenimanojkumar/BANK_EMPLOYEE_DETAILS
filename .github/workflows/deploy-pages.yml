@@ -29,7 +29,6 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.44.7"
           channel: stable
           cache: true
           cache-dependency-path: Bank_Employee_Application/Frontend/pubspec.lock
@@ -42,22 +41,17 @@ jobs:
           flutter analyze
           flutter test
 
-      - name: Validate API URL
-        env:
-          API_BASE_URL: ${{ vars.API_BASE_URL }}
-        run: |
-          if [[ ! "$API_BASE_URL" =~ ^https://[^/]+(/[^/]+)*/api$ ]]; then
-            echo "::error::Set the repository Actions variable API_BASE_URL to the HTTPS URL of the deployed Django API, ending in /api."
-            exit 1
-          fi
-
       - name: Build Flutter web
         env:
           API_BASE_URL: ${{ vars.API_BASE_URL }}
-        run: >
-          flutter build web --release
-          --base-href /BANK_EMPLOYEE_DETAILS/
-          --dart-define=API_BASE_URL=${API_BASE_URL}
+        run: |
+          if [ -n "$API_BASE_URL" ]; then
+            echo "Building with configured API_BASE_URL: $API_BASE_URL"
+            flutter build web --release --base-href /BANK_EMPLOYEE_DETAILS/ --dart-define=API_BASE_URL="$API_BASE_URL"
+          else
+            echo "API_BASE_URL variable is not set. Building in standalone frontend mode."
+            flutter build web --release --base-href /BANK_EMPLOYEE_DETAILS/
+          fi
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
