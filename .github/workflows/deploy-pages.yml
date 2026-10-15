@@ -1,0 +1,82 @@
+name: Deploy Flutter web to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Bank_Employee_Application/Frontend/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Bank_Employee_Application/Frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.7"
+          channel: stable
+          cache: true
+          cache-dependency-path: Bank_Employee_Application/Frontend/pubspec.lock
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze and test
+        run: |
+          flutter analyze
+          flutter test
+
+      - name: Validate API URL
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          if [[ ! "$API_BASE_URL" =~ ^https://[^/]+(/[^/]+)*/api$ ]]; then
+            echo "::error::Set the repository Actions variable API_BASE_URL to the HTTPS URL of the deployed Django API, ending in /api."
+            exit 1
+          fi
+
+      - name: Build Flutter web
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: >
+          flutter build web --release
+          --base-href /BANK_EMPLOYEE_DETAILS/
+          --dart-define=API_BASE_URL=${API_BASE_URL}
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: Bank_Employee_Application/Frontend/build/web
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

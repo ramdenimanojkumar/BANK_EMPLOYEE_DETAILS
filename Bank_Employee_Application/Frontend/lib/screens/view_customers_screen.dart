@@ -12,23 +12,22 @@ enum DirectoryViewState {
   loading,
   empty,
   error,
+  connected,
   layoutPreview,
 }
 
 class ViewCustomersScreen extends StatefulWidget {
   final VoidCallback? onNavigateToAdd;
+  final CustomerService? service;
 
-  const ViewCustomersScreen({
-    super.key,
-    this.onNavigateToAdd,
-  });
+  const ViewCustomersScreen({super.key, this.onNavigateToAdd, this.service});
 
   @override
   State<ViewCustomersScreen> createState() => _ViewCustomersScreenState();
 }
 
 class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
-  final _customerService = CustomerService();
+  CustomerService get _customerService => widget.service ?? CustomerService();
   final _searchIdController = TextEditingController();
   final _filterTextController = TextEditingController();
 
@@ -36,14 +35,23 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
   bool _isSearchingId = false;
   bool _hasSearchedId = false;
   String _lastSearchedQuery = '';
+  Customer? _searchedCustomer;
+  String? _searchError;
+  String? _directoryError;
+  List<Customer> _customers = [];
 
-  // Directory UI State (Default is disconnected, per requirement 6)
-  DirectoryViewState _currentViewState = DirectoryViewState.disconnected;
+  DirectoryViewState _currentViewState = DirectoryViewState.loading;
   String _selectedAccountTypeFilter = 'All';
   String _selectedStatusFilter = 'All';
 
   // Checking backend connection state
   bool _isCheckingConnection = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCustomers();
+  }
 
   @override
   void dispose() {
@@ -58,7 +66,9 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
     if (query.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a Customer ID to search (e.g. CUST-1001).'),
+          content: Text(
+            'Please enter a Customer ID to search (e.g. CUST-1001).',
+          ),
           backgroundColor: Color(0xFFD97706),
         ),
       );
@@ -69,15 +79,28 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
       _isSearchingId = true;
       _hasSearchedId = true;
       _lastSearchedQuery = query;
+      _searchedCustomer = null;
+      _searchError = null;
     });
 
-    // Simulate network query attempt to backend
-    await Future.delayed(const Duration(milliseconds: 350));
-
-    if (!mounted) return;
-    setState(() {
-      _isSearchingId = false;
-    });
+    try {
+      final customer = await _customerService.getCustomerById(query);
+      if (!mounted) return;
+      setState(() {
+        _searchedCustomer = customer;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _searchError = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSearchingId = false;
+        });
+      }
+    }
   }
 
   void _clearIdSearch() {
@@ -85,10 +108,37 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
     setState(() {
       _hasSearchedId = false;
       _lastSearchedQuery = '';
+      _searchedCustomer = null;
+      _searchError = null;
     });
   }
 
-  /// Pings backend connection
+  Future<void> _loadCustomers() async {
+    if (mounted) {
+      setState(() {
+        _currentViewState = DirectoryViewState.loading;
+      });
+    }
+
+    try {
+      final customers = await _customerService.getAllCustomers();
+      if (!mounted) return;
+      setState(() {
+        _customers = customers;
+        _directoryError = null;
+        _currentViewState = customers.isEmpty
+            ? DirectoryViewState.empty
+            : DirectoryViewState.connected;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _directoryError = error.toString();
+        _currentViewState = DirectoryViewState.disconnected;
+      });
+    }
+  }
+
   Future<void> _checkConnection() async {
     setState(() {
       _isCheckingConnection = true;
@@ -97,6 +147,16 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
     final isConnected = await _customerService.checkBackendConnection();
 
     if (!mounted) return;
+    if (isConnected) {
+      await _loadCustomers();
+      if (!mounted) return;
+    } else {
+      setState(() {
+        _currentViewState = DirectoryViewState.disconnected;
+        _directoryError =
+            'The API health check failed at ${CustomerService.apiBaseUrl}/health/.';
+      });
+    }
     setState(() {
       _isCheckingConnection = false;
     });
@@ -106,7 +166,9 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
         content: Row(
           children: [
             Icon(
-              isConnected ? Icons.check_circle_rounded : Icons.cloud_off_rounded,
+              isConnected
+                  ? Icons.check_circle_rounded
+                  : Icons.cloud_off_rounded,
               color: Colors.white,
             ),
             const SizedBox(width: 10),
@@ -119,22 +181,30 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
             ),
           ],
         ),
-        backgroundColor: isConnected ? const Color(0xFF059669) : const Color(0xFFDC2626),
+        backgroundColor: isConnected
+            ? const Color(0xFF059669)
+            : const Color(0xFFDC2626),
         duration: const Duration(seconds: 4),
       ),
     );
   }
 
-  /// Filtered items strictly used when inspecting the responsive layout template preview
-  List<Customer> get _filteredPreviewCustomers {
-    final templates = CustomerService.getPreviewLayoutTemplates();
-    return templates.where((c) {
-      final matchesType = _selectedAccountTypeFilter == 'All' || c.accountType == _selectedAccountTypeFilter;
-      final matchesStatus = _selectedStatusFilter == 'All' || c.accountStatus == _selectedStatusFilter;
+  List<Customer> get _filteredCustomers {
+    final customers = _currentViewState == DirectoryViewState.layoutPreview
+        ? CustomerService.previewLayoutTemplates
+        : _customers;
+    return customers.where((c) {
+      final matchesType =
+          _selectedAccountTypeFilter == 'All' ||
+          c.accountType == _selectedAccountTypeFilter;
+      final matchesStatus =
+          _selectedStatusFilter == 'All' ||
+          c.accountStatus == _selectedStatusFilter;
       final query = _filterTextController.text.trim().toLowerCase();
       if (query.isEmpty) return matchesType && matchesStatus;
 
-      final matchesQuery = c.fullName.toLowerCase().contains(query) ||
+      final matchesQuery =
+          c.fullName.toLowerCase().contains(query) ||
           c.customerId.toLowerCase().contains(query) ||
           c.accountNumber.contains(query) ||
           c.branchName.toLowerCase().contains(query) ||
@@ -205,7 +275,11 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
               color: Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.people_alt_rounded, color: Colors.white, size: 28),
+            child: const Icon(
+              Icons.people_alt_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
           ),
           const SizedBox(width: 16),
           const Expanded(
@@ -223,10 +297,7 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                 SizedBox(height: 2),
                 Text(
                   'Search institutional records by Customer ID or monitor backend account repository',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
                 ),
               ],
             ),
@@ -244,7 +315,10 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                     ),
                   )
                 : const Icon(Icons.sync_rounded, color: Colors.white, size: 16),
-            label: const Text('Check Connection', style: TextStyle(color: Colors.white, fontSize: 12)),
+            label: const Text(
+              'Check Connection',
+              style: TextStyle(color: Colors.white, fontSize: 12),
+            ),
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: Colors.white30),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -267,7 +341,11 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.search_rounded, color: AppTheme.navyPrimary, size: 22),
+                const Icon(
+                  Icons.search_rounded,
+                  color: AppTheme.navyPrimary,
+                  size: 22,
+                ),
                 const SizedBox(width: 10),
                 const Text(
                   'Search Customer by ID',
@@ -305,10 +383,17 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                     controller: _searchIdController,
                     onSubmitted: (_) => _performIdSearch(),
                     textCapitalization: TextCapitalization.characters,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                     decoration: InputDecoration(
-                      hintText: 'Enter Customer ID (e.g. CUST-1001, CUST-2024)...',
-                      prefixIcon: const Icon(Icons.fingerprint_rounded, size: 20),
+                      hintText:
+                          'Enter Customer ID (e.g. CUST-1001, CUST-2024)...',
+                      prefixIcon: const Icon(
+                        Icons.fingerprint_rounded,
+                        size: 20,
+                      ),
                       suffixIcon: _searchIdController.text.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear, size: 18),
@@ -333,13 +418,18 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Icon(Icons.search_rounded, size: 18),
                   label: Text(_isSearchingId ? 'Searching...' : 'Search'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 15,
+                    ),
                   ),
                 ),
               ],
@@ -350,7 +440,7 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
               const SizedBox(height: 20),
               const Divider(color: AppTheme.cardBorder),
               const SizedBox(height: 16),
-              _buildSearchDisconnectedNotice(_lastSearchedQuery),
+              _buildSearchResult(),
             ],
           ],
         ),
@@ -375,7 +465,11 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
               color: const Color(0xFFFEF3C7),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.cloud_off_rounded, color: Color(0xFFD97706), size: 28),
+            child: const Icon(
+              Icons.cloud_off_rounded,
+              color: Color(0xFFD97706),
+              size: 28,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -383,7 +477,7 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Backend Disconnected — Search Inactive',
+                  'Could Not Search Customer',
                   style: TextStyle(
                     color: Color(0xFF92400E),
                     fontSize: 15,
@@ -392,7 +486,7 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Unable to query records for Customer ID "$query" because the backend service is not connected yet. In compliance with security requirements, customer records are not stored or queried on the frontend.',
+                  'Unable to retrieve Customer ID "$query": ${_searchError ?? 'the backend is unavailable.'}',
                   style: const TextStyle(
                     color: Color(0xFF78350F),
                     fontSize: 13,
@@ -411,7 +505,10 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF92400E),
                         side: const BorderSide(color: Color(0xFFF59E0B)),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
                         textStyle: const TextStyle(fontSize: 12),
                       ),
                     ),
@@ -421,7 +518,10 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                       label: const Text('Check Backend Connection'),
                       style: TextButton.styleFrom(
                         foregroundColor: AppTheme.navyPrimary,
-                        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                        textStyle: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -432,6 +532,34 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildSearchResult() {
+    if (_isSearchingId) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_searchError != null) {
+      return _buildSearchDisconnectedNotice(_lastSearchedQuery);
+    }
+
+    final customer = _searchedCustomer;
+    if (customer == null) {
+      return Padding(
+        padding: const EdgeInsets.all(20),
+        child: Text(
+          'No customer found with ID "${_lastSearchedQuery.toUpperCase()}".',
+          style: const TextStyle(color: AppTheme.textSecondary),
+        ),
+      );
+    }
+
+    return CustomerCard(customer: customer);
   }
 
   // ==========================================================
@@ -454,7 +582,11 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.list_alt_rounded, color: AppTheme.navyPrimary, size: 22),
+                    const Icon(
+                      Icons.list_alt_rounded,
+                      color: AppTheme.navyPrimary,
+                      size: 22,
+                    ),
                     const SizedBox(width: 10),
                     const Text(
                       'View Customers',
@@ -466,9 +598,13 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                     ),
                     const SizedBox(width: 10),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
-                        color: _currentViewState == DirectoryViewState.disconnected
+                        color:
+                            _currentViewState == DirectoryViewState.disconnected
                             ? const Color(0xFFFEE2E2)
                             : AppTheme.blueLight,
                         borderRadius: BorderRadius.circular(12),
@@ -476,13 +612,16 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                       child: Text(
                         _currentViewState == DirectoryViewState.disconnected
                             ? 'Disconnected'
-                            : (_currentViewState == DirectoryViewState.layoutPreview
-                                ? 'Template Preview'
-                                : _currentViewState.name.toUpperCase()),
+                            : (_currentViewState ==
+                                      DirectoryViewState.layoutPreview
+                                  ? 'Template Preview'
+                                  : _currentViewState.name.toUpperCase()),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: _currentViewState == DirectoryViewState.disconnected
+                          color:
+                              _currentViewState ==
+                                  DirectoryViewState.disconnected
                               ? const Color(0xFFDC2626)
                               : AppTheme.blueAccent,
                         ),
@@ -526,7 +665,11 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
               padding: EdgeInsets.symmetric(horizontal: 6),
               child: Text(
                 'UI State:',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textSecondary,
+                ),
               ),
             ),
             _buildStateChip('Disconnected', DirectoryViewState.disconnected),
@@ -578,6 +721,8 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
         return _buildEmptyState();
       case DirectoryViewState.error:
         return _buildErrorState();
+      case DirectoryViewState.connected:
+        return _buildLayoutPreviewState(isDesktop);
       case DirectoryViewState.layoutPreview:
         return _buildLayoutPreviewState(isDesktop);
     }
@@ -602,7 +747,11 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                 shape: BoxShape.circle,
                 border: Border.all(color: const Color(0xFFFECACA), width: 2),
               ),
-              child: const Icon(Icons.cloud_off_rounded, size: 48, color: Color(0xFFDC2626)),
+              child: const Icon(
+                Icons.cloud_off_rounded,
+                size: 48,
+                color: Color(0xFFDC2626),
+              ),
             ),
             const SizedBox(height: 20),
             const Text(
@@ -616,8 +765,10 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
               ),
             ),
             const SizedBox(height: 10),
-            const Text(
-              'To protect client privacy and ensure transactional integrity, customer records are never stored in the Flutter frontend (no in-memory lists, local storage, or cached data).',
+            Text(
+              _directoryError == null
+                  ? 'Customer records are loaded from Django and are not persisted locally by the Flutter app.'
+                  : 'Unable to load records from ${CustomerService.baseUrl}: $_directoryError',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -639,14 +790,19 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                           height: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Icon(Icons.refresh_rounded, size: 16),
                   label: const Text('Check Backend Connection'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.navyPrimary,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                   ),
                 ),
                 OutlinedButton.icon(
@@ -656,7 +812,10 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                   icon: const Icon(Icons.person_add_rounded, size: 16),
                   label: const Text('Go to Add Customer Form'),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ],
@@ -676,7 +835,10 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
       alignment: Alignment.center,
       child: const Column(
         children: [
-          CircularProgressIndicator(strokeWidth: 3, color: AppTheme.navyPrimary),
+          CircularProgressIndicator(
+            strokeWidth: 3,
+            color: AppTheme.navyPrimary,
+          ),
           SizedBox(height: 20),
           Text(
             'Fetching customer records from backend API...',
@@ -688,7 +850,7 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
           ),
           SizedBox(height: 6),
           Text(
-            'Connecting to http://127.0.0.1:8000/api/customers/',
+            'Connecting to ${CustomerService.baseUrl}',
             style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
           ),
         ],
@@ -711,7 +873,11 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
               color: AppTheme.blueLight,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.people_outline_rounded, size: 44, color: AppTheme.blueAccent),
+            child: const Icon(
+              Icons.people_outline_rounded,
+              size: 44,
+              color: AppTheme.blueAccent,
+            ),
           ),
           const SizedBox(height: 18),
           const Text(
@@ -758,7 +924,11 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
       ),
       child: Column(
         children: [
-          const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 40),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Color(0xFFDC2626),
+            size: 40,
+          ),
           const SizedBox(height: 12),
           const Text(
             'Connection Error: Failed to Reach Backend',
@@ -776,18 +946,7 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
           ),
           const SizedBox(height: 18),
           ElevatedButton.icon(
-            onPressed: () {
-              setState(() {
-                _currentViewState = DirectoryViewState.loading;
-              });
-              Future.delayed(const Duration(milliseconds: 600), () {
-                if (mounted) {
-                  setState(() {
-                    _currentViewState = DirectoryViewState.disconnected;
-                  });
-                }
-              });
-            },
+            onPressed: _loadCustomers,
             icon: const Icon(Icons.refresh_rounded, size: 16),
             label: const Text('Retry Connection'),
             style: ElevatedButton.styleFrom(
@@ -808,28 +967,37 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Watermark Banner
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEFF6FF),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFBFDBFE)),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.design_services_outlined, color: AppTheme.blueAccent, size: 18),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Component Layout Template Preview: Demonstrating responsive DataTable (desktop) and Customer Cards (mobile/tablet) displaying all 13 customer attributes. Not saved frontend data.',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF1E40AF)),
+        if (_currentViewState == DirectoryViewState.layoutPreview)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: const Row(
+              children: [
+                Icon(
+                  Icons.design_services_outlined,
+                  color: AppTheme.blueAccent,
+                  size: 18,
                 ),
-              ),
-            ],
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Component Layout Template Preview: Demonstrating the responsive layout with sample data only.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF1E40AF),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
+        if (_currentViewState == DirectoryViewState.layoutPreview)
+          const SizedBox(height: 16),
 
         // Filter Controls
         if (isDesktop)
@@ -844,7 +1012,10 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                     hintText: 'Filter by name, ID, account #, branch, phone...',
                     prefixIcon: const Icon(Icons.filter_list_rounded, size: 20),
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
                     suffixIcon: _filterTextController.text.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear, size: 16),
@@ -865,12 +1036,18 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                   isDense: true,
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.credit_card_outlined, size: 20),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
                   ),
                   items: ['All', ...Customer.accountTypes].map((type) {
                     return DropdownMenuItem<String>(
                       value: type,
-                      child: Text(type == 'All' ? 'All Account Types' : '$type Accounts', style: const TextStyle(fontSize: 13)),
+                      child: Text(
+                        type == 'All' ? 'All Account Types' : '$type Accounts',
+                        style: const TextStyle(fontSize: 13),
+                      ),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -890,12 +1067,18 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                   isDense: true,
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.toggle_on_outlined, size: 20),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
                   ),
                   items: ['All', ...Customer.accountStatuses].map((status) {
                     return DropdownMenuItem<String>(
                       value: status,
-                      child: Text(status == 'All' ? 'All Statuses' : '$status Status', style: const TextStyle(fontSize: 13)),
+                      child: Text(
+                        status == 'All' ? 'All Statuses' : '$status Status',
+                        style: const TextStyle(fontSize: 13),
+                      ),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -919,7 +1102,10 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                   hintText: 'Filter by name, ID, account #, branch...',
                   prefixIcon: const Icon(Icons.filter_list_rounded, size: 20),
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
                   suffixIcon: _filterTextController.text.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear, size: 16),
@@ -940,12 +1126,18 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                       isDense: true,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.credit_card_outlined, size: 18),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 10,
+                        ),
                       ),
                       items: ['All', ...Customer.accountTypes].map((type) {
                         return DropdownMenuItem<String>(
                           value: type,
-                          child: Text(type == 'All' ? 'All Types' : type, style: const TextStyle(fontSize: 12)),
+                          child: Text(
+                            type == 'All' ? 'All Types' : type,
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         );
                       }).toList(),
                       onChanged: (val) {
@@ -964,12 +1156,18 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                       isDense: true,
                       decoration: const InputDecoration(
                         prefixIcon: Icon(Icons.toggle_on_outlined, size: 18),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 10,
+                        ),
                       ),
                       items: ['All', ...Customer.accountStatuses].map((status) {
                         return DropdownMenuItem<String>(
                           value: status,
-                          child: Text(status == 'All' ? 'All Status' : status, style: const TextStyle(fontSize: 12)),
+                          child: Text(
+                            status == 'All' ? 'All Status' : status,
+                            style: const TextStyle(fontSize: 12),
+                          ),
                         );
                       }).toList(),
                       onChanged: (val) {
@@ -988,11 +1186,14 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
         const SizedBox(height: 16),
 
         // List / Table
-        if (_filteredPreviewCustomers.isEmpty)
+        if (_filteredCustomers.isEmpty)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 40),
             alignment: Alignment.center,
-            child: const Text('No records match your filter criteria.', style: TextStyle(color: AppTheme.textSecondary)),
+            child: const Text(
+              'No records match your filter criteria.',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
           )
         else if (isDesktop)
           _buildDesktopTable()
@@ -1003,7 +1204,10 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
   }
 
   Widget _buildDesktopTable() {
-    final currencyFormatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+    final currencyFormatter = NumberFormat.currency(
+      symbol: '\$',
+      decimalDigits: 2,
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -1030,12 +1234,15 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                 DataColumn(label: Text('STATUS')),
                 DataColumn(label: Text('ACTION')),
               ],
-              rows: _filteredPreviewCustomers.map((cust) {
+              rows: _filteredCustomers.map((cust) {
                 return DataRow(
                   cells: [
                     DataCell(
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.blueLight,
                           borderRadius: BorderRadius.circular(4),
@@ -1062,26 +1269,40 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                     DataCell(
                       Text(
                         cust.accountNumber,
-                        style: const TextStyle(fontFamily: 'Courier', fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontFamily: 'Courier',
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    DataCell(StatusBadge(status: cust.accountType, isCompact: true)),
+                    DataCell(
+                      StatusBadge(status: cust.accountType, isCompact: true),
+                    ),
                     DataCell(Text(cust.branchName)),
                     DataCell(
                       Text(
                         currencyFormatter.format(cust.accountBalance),
-                        style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF047857)),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF047857),
+                        ),
                       ),
                     ),
-                    DataCell(StatusBadge(status: cust.accountStatus, isCompact: true)),
+                    DataCell(
+                      StatusBadge(status: cust.accountStatus, isCompact: true),
+                    ),
                     DataCell(
                       TextButton.icon(
-                        onPressed: () => CustomerDetailModal.show(context, cust),
+                        onPressed: () =>
+                            CustomerDetailModal.show(context, cust),
                         icon: const Icon(Icons.visibility_outlined, size: 16),
                         label: const Text('View Dossier'),
                         style: TextButton.styleFrom(
                           foregroundColor: AppTheme.navyPrimary,
-                          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
@@ -1097,7 +1318,7 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
 
   Widget _buildMobileCards() {
     return Column(
-      children: _filteredPreviewCustomers.map((cust) {
+      children: _filteredCustomers.map((cust) {
         return CustomerCard(customer: cust);
       }).toList(),
     );

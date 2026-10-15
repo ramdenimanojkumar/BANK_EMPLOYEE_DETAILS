@@ -46,3 +46,11 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+Frontend/build/
+
+# Django and local database configuration
+Backend/.env
+Backend/.venv/
+Backend/__pycache__/
+Backend/**/__pycache__/
+Backend/*.sqlite3

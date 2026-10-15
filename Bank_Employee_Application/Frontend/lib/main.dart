@@ -66,7 +66,11 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           children: [
             // Professional Banking Sidebar
             _buildDesktopSidebar(),
-            const VerticalDivider(width: 1, thickness: 1, color: AppTheme.cardBorder),
+            const VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: AppTheme.cardBorder,
+            ),
             // Screen content
             Expanded(
               child: Scaffold(
@@ -91,12 +95,18 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.person_add_outlined),
-              selectedIcon: Icon(Icons.person_add_rounded, color: AppTheme.navyPrimary),
+              selectedIcon: Icon(
+                Icons.person_add_rounded,
+                color: AppTheme.navyPrimary,
+              ),
               label: 'Add Customer',
             ),
             NavigationDestination(
               icon: Icon(Icons.people_outline_rounded),
-              selectedIcon: Icon(Icons.people_alt_rounded, color: AppTheme.navyPrimary),
+              selectedIcon: Icon(
+                Icons.people_alt_rounded,
+                color: AppTheme.navyPrimary,
+              ),
               label: 'View Customers',
             ),
           ],
@@ -115,7 +125,11 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: const Icon(Icons.account_balance_rounded, size: 20, color: Colors.white),
+            child: const Icon(
+              Icons.account_balance_rounded,
+              size: 20,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -170,7 +184,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                 ),
                 const SizedBox(width: 8),
                 const Text(
-                  'Frontend Mode: Stateless UI (Backend Required)',
+                  'Django + PostgreSQL Backend',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -184,7 +198,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Tooltip(
-              message: 'Frontend Mode: Stateless UI (Backend Required)',
+              message: 'Django + PostgreSQL Backend',
               child: Container(
                 width: 10,
                 height: 10,
@@ -222,7 +236,11 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                     color: Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.account_balance_rounded, color: Colors.white, size: 22),
+                  child: const Icon(
+                    Icons.account_balance_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -240,10 +258,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                       ),
                       Text(
                         'Customer Management',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                        ),
+                        style: TextStyle(color: Colors.white70, fontSize: 11),
                       ),
                     ],
                   ),
@@ -297,7 +312,11 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.shield_outlined, color: Colors.white70, size: 16),
+                    const Icon(
+                      Icons.shield_outlined,
+                      color: Colors.white70,
+                      size: 16,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -339,11 +358,16 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Material(
-        color: isSelected ? AppTheme.blueAccent.withValues(alpha: 0.2) : Colors.transparent,
+        color: isSelected
+            ? AppTheme.blueAccent.withValues(alpha: 0.2)
+            : Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
           side: isSelected
-              ? BorderSide(color: AppTheme.blueAccent.withValues(alpha: 0.5), width: 1)
+              ? BorderSide(
+                  color: AppTheme.blueAccent.withValues(alpha: 0.5),
+                  width: 1,
+                )
               : BorderSide.none,
         ),
         child: InkWell(
@@ -367,7 +391,9 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                         title,
                         style: TextStyle(
                           color: isSelected ? Colors.white : Colors.white70,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                           fontSize: 14,
                         ),
                       ),

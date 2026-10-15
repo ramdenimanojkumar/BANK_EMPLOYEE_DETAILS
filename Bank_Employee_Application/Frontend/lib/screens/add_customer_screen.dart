@@ -2,16 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/customer.dart';
+import '../services/customer_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/customer_form_field.dart';
 
 class AddCustomerScreen extends StatefulWidget {
   final VoidCallback? onNavigateToView;
 
-  const AddCustomerScreen({
-    super.key,
-    this.onNavigateToView,
-  });
+  const AddCustomerScreen({super.key, this.onNavigateToView});
 
   @override
   State<AddCustomerScreen> createState() => _AddCustomerScreenState();
@@ -19,6 +17,7 @@ class AddCustomerScreen extends StatefulWidget {
 
 class _AddCustomerScreenState extends State<AddCustomerScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _customerService = CustomerService();
 
   // Form Controllers (Temporary state during user entry)
   final _customerIdController = TextEditingController();
@@ -27,7 +26,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _accountNumberController = TextEditingController();
-  final _branchNameController = TextEditingController(text: 'Downtown Financial Center');
+  final _branchNameController = TextEditingController(
+    text: 'Downtown Financial Center',
+  );
   final _branchCodeController = TextEditingController(text: 'APX-NYC-01');
   final _accountBalanceController = TextEditingController();
 
@@ -93,7 +94,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               Icon(Icons.warning_amber_rounded, color: Colors.white),
               SizedBox(width: 10),
               Expanded(
-                child: Text('Please correct the highlighted form errors before submitting.'),
+                child: Text(
+                  'Please correct the highlighted form errors before submitting.',
+                ),
               ),
             ],
           ),
@@ -140,9 +143,13 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     });
 
     // Capture temporary data snapshot for modal summary
-    final currencyFormatter = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+    final currencyFormatter = NumberFormat.currency(
+      symbol: '\$',
+      decimalDigits: 2,
+    );
     final dateFormatter = DateFormat('yyyy-MM-dd');
-    final parsedBalance = double.tryParse(_accountBalanceController.text.trim()) ?? 0.0;
+    final parsedBalance =
+        double.tryParse(_accountBalanceController.text.trim()) ?? 0.0;
 
     final customerSnapshot = Customer(
       customerId: _customerIdController.text.trim().toUpperCase(),
@@ -160,8 +167,25 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       accountStatus: _selectedAccountStatus,
     );
 
-    // Show architectural confirmation modal explaining that data was validated
-    // but cannot be persisted on the frontend without the backend connected.
+    try {
+      await _customerService.createCustomer(customerSnapshot);
+    } on Exception catch (error) {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Customer was not saved: $error'),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -175,12 +199,16 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 color: const Color(0xFFEFF6FF),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.verified_outlined, color: AppTheme.blueAccent, size: 24),
+              child: const Icon(
+                Icons.verified_outlined,
+                color: AppTheme.blueAccent,
+                size: 24,
+              ),
             ),
             const SizedBox(width: 12),
             const Expanded(
               child: Text(
-                'Form Validated Successfully',
+                'Customer Saved Successfully',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -199,22 +227,26 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFBEB),
+                  color: const Color(0xFFECFDF5),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFFDE68A)),
+                  border: Border.all(color: const Color(0xFFA7F3D0)),
                 ),
                 child: const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.info_outline_rounded, color: Color(0xFFD97706), size: 20),
+                    Icon(
+                      Icons.check_circle_outline_rounded,
+                      color: Color(0xFF059669),
+                      size: 20,
+                    ),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Customer data is not stored in the frontend. To permanently persist this customer record, connect the backend API and database.',
+                        'This customer record has been saved to the backend database.',
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w500,
-                          color: Color(0xFF92400E),
+                          color: Color(0xFF065F46),
                           height: 1.4,
                         ),
                       ),
@@ -224,7 +256,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Validated Record Summary:',
+                'Saved Record Summary:',
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
@@ -243,15 +275,36 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                   children: [
                     _buildModalRow('Customer ID:', customerSnapshot.customerId),
                     _buildModalRow('Full Name:', customerSnapshot.fullName),
-                    _buildModalRow('Date of Birth:', dateFormatter.format(customerSnapshot.dateOfBirth)),
+                    _buildModalRow(
+                      'Date of Birth:',
+                      dateFormatter.format(customerSnapshot.dateOfBirth),
+                    ),
                     _buildModalRow('Email:', customerSnapshot.email),
                     _buildModalRow('Phone:', customerSnapshot.phone),
-                    _buildModalRow('Account Number:', customerSnapshot.accountNumber),
-                    _buildModalRow('Account Type:', customerSnapshot.accountType),
-                    _buildModalRow('Branch:', '${customerSnapshot.branchName} (${customerSnapshot.branchCode})'),
-                    _buildModalRow('Opening Date:', dateFormatter.format(customerSnapshot.accountOpeningDate)),
-                    _buildModalRow('Account Balance:', currencyFormatter.format(customerSnapshot.accountBalance)),
-                    _buildModalRow('Account Status:', customerSnapshot.accountStatus),
+                    _buildModalRow(
+                      'Account Number:',
+                      customerSnapshot.accountNumber,
+                    ),
+                    _buildModalRow(
+                      'Account Type:',
+                      customerSnapshot.accountType,
+                    ),
+                    _buildModalRow(
+                      'Branch:',
+                      '${customerSnapshot.branchName} (${customerSnapshot.branchCode})',
+                    ),
+                    _buildModalRow(
+                      'Opening Date:',
+                      dateFormatter.format(customerSnapshot.accountOpeningDate),
+                    ),
+                    _buildModalRow(
+                      'Account Balance:',
+                      currencyFormatter.format(customerSnapshot.accountBalance),
+                    ),
+                    _buildModalRow(
+                      'Account Status:',
+                      customerSnapshot.accountStatus,
+                    ),
                   ],
                 ),
               ),
@@ -277,14 +330,17 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       ),
     );
 
-    // Clear temporary form field values upon submit completion
     if (mounted) {
       _clearForm();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Row(
             children: [
-              Icon(Icons.cleaning_services_rounded, color: Colors.white, size: 18),
+              Icon(
+                Icons.cleaning_services_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
               SizedBox(width: 10),
               Text('Temporary form values cleared. Ready for next entry.'),
             ],
@@ -400,7 +456,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white, size: 28),
+            child: const Icon(
+              Icons.person_add_alt_1_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
           ),
           const SizedBox(width: 16),
           const Expanded(
@@ -419,10 +479,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 SizedBox(height: 3),
                 Text(
                   'Register new client KYC particulars, branch association, and account specifications',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
                 ),
               ],
             ),
@@ -448,14 +505,19 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           Expanded(
             child: RichText(
               text: const TextSpan(
-                style: TextStyle(fontSize: 12.5, color: Color(0xFF166534), height: 1.4),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: Color(0xFF166534),
+                  height: 1.4,
+                ),
                 children: [
                   TextSpan(
                     text: 'Frontend Interface Ready: ',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                   TextSpan(
-                    text: 'This form performs client-side field validation. In alignment with banking security architecture, customer records are neither stored nor cached locally in the frontend. Connect the backend database to store persistent records.',
+                    text:
+                        'This form performs client-side field validation. In alignment with banking security architecture, customer records are neither stored nor cached locally in the frontend. Connect the backend database to store persistent records.',
                   ),
                 ],
               ),
@@ -473,7 +535,10 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildCardTitle(Icons.badge_outlined, '1. Personal & KYC Identification'),
+            _buildCardTitle(
+              Icons.badge_outlined,
+              '1. Personal & KYC Identification',
+            ),
             const SizedBox(height: 20),
             if (isDesktop) ...[
               Row(
@@ -564,7 +629,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       icon: Icons.cake_outlined,
                       selectedDate: _selectedDateOfBirth,
                       firstDate: DateTime(1920),
-                      lastDate: DateTime.now().subtract(const Duration(days: 365 * 10)),
+                      lastDate: DateTime.now().subtract(
+                        const Duration(days: 365 * 10),
+                      ),
                       onDateSelected: (date) {
                         setState(() {
                           _selectedDateOfBirth = date;
@@ -601,7 +668,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 icon: Icons.cake_outlined,
                 selectedDate: _selectedDateOfBirth,
                 firstDate: DateTime(1920),
-                lastDate: DateTime.now().subtract(const Duration(days: 365 * 10)),
+                lastDate: DateTime.now().subtract(
+                  const Duration(days: 365 * 10),
+                ),
                 onDateSelected: (date) {
                   setState(() {
                     _selectedDateOfBirth = date;
@@ -639,7 +708,10 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildCardTitle(Icons.contact_mail_outlined, '2. Contact Information'),
+            _buildCardTitle(
+              Icons.contact_mail_outlined,
+              '2. Contact Information',
+            ),
             const SizedBox(height: 20),
             if (isDesktop) ...[
               Row(
@@ -656,7 +728,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         if (value == null || value.trim().isEmpty) {
                           return 'Email address is required';
                         }
-                        final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                        final emailRegex = RegExp(
+                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                        );
                         if (!emailRegex.hasMatch(value.trim())) {
                           return 'Please enter a valid email address';
                         }
@@ -697,7 +771,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                   if (value == null || value.trim().isEmpty) {
                     return 'Email address is required';
                   }
-                  final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                  final emailRegex = RegExp(
+                    r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                  );
                   if (!emailRegex.hasMatch(value.trim())) {
                     return 'Please enter a valid email address';
                   }
@@ -736,7 +812,10 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildCardTitle(Icons.account_balance_outlined, '3. Bank Account & Branch Details'),
+            _buildCardTitle(
+              Icons.account_balance_outlined,
+              '3. Bank Account & Branch Details',
+            ),
             const SizedBox(height: 20),
 
             // Account Number & Account Type
@@ -756,7 +835,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         if (value == null || value.trim().isEmpty) {
                           return 'Account Number is required';
                         }
-                        if (value.trim().length < 8 || value.trim().length > 18) {
+                        if (value.trim().length < 8 ||
+                            value.trim().length > 18) {
                           return 'Account number must be 8-18 digits';
                         }
                         return null;
@@ -908,9 +988,13 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       hint: 'e.g. 5000.00',
                       controller: _accountBalanceController,
                       prefixIcon: Icons.attach_money_rounded,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d*\.?\d{0,2}'),
+                        ),
                       ],
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
@@ -965,7 +1049,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 hint: 'e.g. 5000.00',
                 controller: _accountBalanceController,
                 prefixIcon: Icons.attach_money_rounded,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
                 ],
@@ -1043,14 +1129,24 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
-                        : const Icon(Icons.check_circle_outline_rounded, size: 18),
-                    label: Text(_isSubmitting ? 'Validating...' : 'Submit Customer Details'),
+                        : const Icon(
+                            Icons.check_circle_outline_rounded,
+                            size: 18,
+                          ),
+                    label: Text(
+                      _isSubmitting ? 'Saving...' : 'Submit Customer Details',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.navyPrimary,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -1059,7 +1155,10 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                     icon: const Icon(Icons.clear_all_rounded, size: 18),
                     label: const Text('Clear Form'),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                 ],
@@ -1072,7 +1171,10 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                     icon: const Icon(Icons.clear_all_rounded, size: 18),
                     label: const Text('Clear Form'),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                   ElevatedButton.icon(
@@ -1083,14 +1185,24 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
-                        : const Icon(Icons.check_circle_outline_rounded, size: 18),
-                    label: Text(_isSubmitting ? 'Validating...' : 'Submit Customer Details'),
+                        : const Icon(
+                            Icons.check_circle_outline_rounded,
+                            size: 18,
+                          ),
+                    label: Text(
+                      _isSubmitting ? 'Saving...' : 'Submit Customer Details',
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.navyPrimary,
-                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 28,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                 ],
