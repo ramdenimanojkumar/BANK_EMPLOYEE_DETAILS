@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'screens/add_customer_screen.dart';
 import 'screens/view_customers_screen.dart';
+import 'services/customer_service.dart';
 import 'widgets/backend_config_dialog.dart';
 
 void main() {
