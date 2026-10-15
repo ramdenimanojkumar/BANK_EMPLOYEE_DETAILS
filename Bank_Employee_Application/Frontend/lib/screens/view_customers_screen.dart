@@ -854,13 +854,13 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 60),
       alignment: Alignment.center,
-      child: const Column(
+      child: Column(
         children: [
-          CircularProgressIndicator(
+          const CircularProgressIndicator(
             strokeWidth: 3,
             color: AppTheme.navyPrimary,
           ),
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
           Text(
             'Fetching customer records from backend API...',
             style: TextStyle(
