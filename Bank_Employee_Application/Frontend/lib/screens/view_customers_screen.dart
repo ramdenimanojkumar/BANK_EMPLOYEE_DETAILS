@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/customer_card.dart';
 import '../widgets/customer_detail_modal.dart';
+import '../widgets/backend_config_dialog.dart';
 
 enum DirectoryViewState {
   disconnected,
@@ -800,7 +801,27 @@ class _ViewCustomersScreenState extends State<ViewCustomersScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.navyPrimary,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    BackendConfigDialog.show(
+                      context,
+                      onConfigurationChanged: () {
+                        _checkConnection();
+                      },
+                    );
+                  },
+                  icon: const Icon(Icons.settings_ethernet_rounded, size: 16),
+                  label: const Text('Configure Server URL'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.blueAccent,
+                    side: const BorderSide(color: AppTheme.blueAccent),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
                       vertical: 12,
                     ),
                   ),

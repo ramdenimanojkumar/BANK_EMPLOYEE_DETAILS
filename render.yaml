@@ -1,0 +1,27 @@
+databases:
+  - name: bank-customer-db
+    databaseName: bank_customer_db
+    user: bank_user
+    plan: free
+
+services:
+  - type: web
+    name: bank-customer-api
+    runtime: python
+    rootDir: Bank_Employee_Application/Backend
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application"
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bank-customer-db
+          property: connectionString
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: CORS_ALLOW_ALL_ORIGINS
+        value: "true"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: "*"

@@ -1,0 +1,19 @@
+# Miscellaneous
+*.log
+*.pyc
+.DS_Store
+.vscode/
+.idea/
+
+# Backend staticfiles and databases
+Bank_Employee_Application/Backend/staticfiles/
+Bank_Employee_Application/Backend/*.sqlite3
+Bank_Employee_Application/Backend/.env
+Bank_Employee_Application/Backend/.venv/
+Bank_Employee_Application/Backend/**/__pycache__/
+
+# Frontend build artifacts
+Bank_Employee_Application/Frontend/build/
+Bank_Employee_Application/Frontend/.dart_tool/
+Bank_Employee_Application/Frontend/.pub-cache/
+Bank_Employee_Application/Frontend/.flutter-plugins-dependencies

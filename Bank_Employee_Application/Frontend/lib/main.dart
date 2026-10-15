@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'screens/add_customer_screen.dart';
 import 'screens/view_customers_screen.dart';
+import 'widgets/backend_config_dialog.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -162,54 +163,51 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         ],
       ),
       actions: [
-        if (isDesktop) ...[
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white24),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
+        Padding(
+          padding: const EdgeInsets.only(right: 16),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () {
+              BackendConfigDialog.show(
+                context,
+                onConfigurationChanged: () {
+                  setState(() {});
+                },
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.dns_rounded,
                     color: Color(0xFFF59E0B),
-                    shape: BoxShape.circle,
+                    size: 15,
                   ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Django + PostgreSQL Backend',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white,
+                  const SizedBox(width: 6),
+                  Text(
+                    isDesktop
+                        ? 'Backend: ${CustomerService.apiBaseUrl}'
+                        : 'Server',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        ] else ...[
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Tooltip(
-              message: 'Django + PostgreSQL Backend',
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF59E0B),
-                  shape: BoxShape.circle,
-                ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_drop_down, color: Colors.white70, size: 16),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ],
     );
   }

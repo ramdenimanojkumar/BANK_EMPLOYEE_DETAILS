@@ -28,11 +28,37 @@ class CustomerService {
 
   final http.Client _client;
 
-  static const String apiBaseUrl = String.fromEnvironment(
+  static const String defaultApiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://127.0.0.1:8000/api',
   );
-  static const String baseUrl = '$apiBaseUrl/customers/';
+
+  static String _activeApiBaseUrl = defaultApiBaseUrl;
+
+  static String get apiBaseUrl => _activeApiBaseUrl;
+
+  static String get baseUrl {
+    final clean = _activeApiBaseUrl.endsWith('/')
+        ? _activeApiBaseUrl
+        : '$_activeApiBaseUrl/';
+    return '${clean}customers/';
+  }
+
+  static void setApiBaseUrl(String url) {
+    var clean = url.trim();
+    if (clean.endsWith('/')) {
+      clean = clean.substring(0, clean.length - 1);
+    }
+    if (!clean.endsWith('/api') && !clean.contains('/api/')) {
+      clean = '$clean/api';
+    }
+    _activeApiBaseUrl = clean;
+  }
+
+  static void resetApiBaseUrl() {
+    _activeApiBaseUrl = defaultApiBaseUrl;
+  }
+
   static const Duration _requestTimeout = Duration(seconds: 10);
 
   static List<Customer> get previewLayoutTemplates => [
@@ -145,14 +171,16 @@ class CustomerService {
     return Customer.fromJson(payload);
   }
 
-  Future<bool> checkBackendConnection() async {
+  Future<bool> checkBackendConnection([String? testUrl]) async {
     try {
-      final uri = Uri.parse('$apiBaseUrl/health/');
+      final base = (testUrl != null && testUrl.trim().isNotEmpty)
+          ? testUrl.trim()
+          : apiBaseUrl;
+      final clean = base.endsWith('/') ? base : '$base/';
+      final uri = Uri.parse('${clean}health/');
       final response = await _client.get(uri).timeout(_requestTimeout);
       return response.statusCode == 200;
-    } on http.ClientException {
-      return false;
-    } on TimeoutException {
+    } on Exception {
       return false;
     }
   }
