@@ -30,7 +30,7 @@ class CustomerService {
 
   static const String defaultApiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:8000/api',
+    defaultValue: 'https://bank-customer-api.onrender.com/api',
   );
 
   static String _activeApiBaseUrl = defaultApiBaseUrl;
